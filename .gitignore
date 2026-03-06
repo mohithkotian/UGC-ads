@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+client/dist/
+server/dist/
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.production
+server/.env
+client/.env
+
+# Google credentials - NEVER commit
+google-credentials.json
+server/google-credentials.json
+
+# Prisma generated
+server/generated/
+generated/prisma/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local

@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  name        String?
+  image       String?
+
+  plan        String   @default("FREE")
+  usedCredits Int      @default(0)
+
+  projects    Project[]
+}
+
+model Project {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  name           String
+  aspectRatio    String?
+  uploadedImages String[]
+
+  userPrompt         String?
+  productName        String?
+  productDescription String?
+  error              String?
+
+  targetLength Int @default(5)
+
+  status         String  @default("draft")
+  isPublished    Boolean @default(false)
+  isGenerating   Boolean @default(false)
+  generatedImage String?
+  generatedVideo String?
+
+  createdAt DateTime @default(now())
+}
