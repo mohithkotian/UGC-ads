@@ -1,9 +1,19 @@
+// Write google credentials from env to file at runtime — MUST BE FIRST
+import fs from "fs"
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  fs.writeFileSync(
+    "./google-credentials.json",
+    process.env.GOOGLE_CREDENTIALS_JSON
+  )
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = "./google-credentials.json"
+}
+
 import "./configs/instrument.mjs"
 import "dotenv/config";
 import express, { Request, Response } from 'express';
 import cors from "cors";
 import { clerkMiddleware } from '@clerk/express'
-import clerkWebhooks from "./controllers/clerk.js"; // Added .js to match your project style
+import clerkWebhooks from "./controllers/clerk.js";
 import * as Sentry from "@sentry/node"
 import userRouter from "./routes/userRouter.js";
 import projectRouter from "./routes/projectRoutes.js"
@@ -30,9 +40,8 @@ app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
 });
 
-// Fixed: Ensure userRouter is correctly imported above
 app.use('/api/user', userRouter)
-app.use('/api/project',projectRouter)
+app.use('/api/project', projectRouter)
 
 // Sentry Error Handler (Must be after all routes)
 Sentry.setupExpressErrorHandler(app);
