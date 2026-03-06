@@ -20,22 +20,19 @@ import projectRouter from "./routes/projectRoutes.js"
 
 const app = express();
 
-// Middleware
 app.use(cors());
 
-// Webhook must come BEFORE express.json()
 app.post('/api/webhooks/clerk', express.raw({ type: 'application/json' }), clerkWebhooks);
 
 app.use(express.json());
 app.use(clerkMiddleware());
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || "5000");
 
 app.get('/', (req: Request, res: Response) => {
     res.send('Server is Live!');
 });
 
-// Sentry Debug Route
 app.get("/debug-sentry", function mainHandler(req, res) {
     throw new Error("My first Sentry error!");
 });
@@ -43,9 +40,9 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 app.use('/api/user', userRouter)
 app.use('/api/project', projectRouter)
 
-// Sentry Error Handler (Must be after all routes)
 Sentry.setupExpressErrorHandler(app);
 
-app.listen(PORT, () => {
+// 0.0.0.0 is required for Render to detect the server is running
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
