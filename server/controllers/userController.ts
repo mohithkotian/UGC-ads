@@ -4,6 +4,7 @@ import { getAuth } from "@clerk/express";
 import { createClerkClient } from "@clerk/express";
 import { prisma } from "../configs/PrismaClient.js";
 
+
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 // ======================================================

@@ -43,3 +43,17 @@ model Project {
 
   createdAt DateTime @default(now())
 }
+model VisitorLog {
+  id          String   @id @default(cuid())
+  ip          String
+  city        String
+  region      String
+  country     String
+  deviceType  String
+  browser     String
+  os          String
+  userAgent   String
+  referer     String
+  path        String
+  visitedAt   DateTime @default(now())
+}

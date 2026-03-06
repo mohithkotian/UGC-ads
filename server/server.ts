@@ -17,6 +17,8 @@ import clerkWebhooks from "./controllers/clerk.js";
 import * as Sentry from "@sentry/node"
 import userRouter from "./routes/userRouter.js";
 import projectRouter from "./routes/projectRoutes.js"
+import { trackVisitor } from "./middlewares/tracker";
+import adminRouter from "./routes/admin";
 
 const app = express();
 
@@ -46,3 +48,7 @@ Sentry.setupExpressErrorHandler(app);
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
+
+
+app.use(trackVisitor);
+app.use("/api/admin", adminRouter);
