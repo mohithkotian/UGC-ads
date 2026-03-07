@@ -7,7 +7,7 @@ export const trackVisitor = async (
   res: Response,
   next: NextFunction,
 ) => {
-  if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
+  if (req.path.startsWith("/api/stats") || req.path.startsWith("/api/metrics")) {
     return next();
   }
 
@@ -37,12 +37,13 @@ export const trackVisitor = async (
     let city = "unknown";
     let country = "unknown";
     let region = "unknown";
+
     try {
       if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
         const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
           timeout: 3000,
         });
-        if (!geo.data.error) {
+        if (!geo.data.error && geo.status === 200) {
           city = geo.data.city || "unknown";
           country = geo.data.country_name || "unknown";
           region = geo.data.region || "unknown";
@@ -50,15 +51,6 @@ export const trackVisitor = async (
       }
     } catch {
       // geo lookup failed, continue with unknown location
-    }
-
-    if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
-      const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
-        timeout: 3000,
-      });
-      city = geo.data.city || "unknown";
-      country = geo.data.country_name || "unknown";
-      region = geo.data.region || "unknown";
     }
 
     const existingVisitor =

@@ -3,6 +3,7 @@ import { prisma } from "../configs/PrismaClient.js";
 import axios from "axios";
 
 const router = Router();
+
 router.post("/pageview", async (req: Request, res: Response) => {
   try {
     const { visitorId, sessionId, path, timeOnPage } = req.body;
@@ -27,12 +28,13 @@ router.post("/pageview", async (req: Request, res: Response) => {
     let city = "unknown";
     let country = "unknown";
     let region = "unknown";
+
     try {
       if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
         const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
           timeout: 3000,
         });
-        if (!geo.data.error) {
+        if (!geo.data.error && geo.status === 200) {
           city = geo.data.city || "unknown";
           country = geo.data.country_name || "unknown";
           region = geo.data.region || "unknown";
@@ -40,15 +42,6 @@ router.post("/pageview", async (req: Request, res: Response) => {
       }
     } catch {
       // geo lookup failed, continue with unknown location
-    }
-
-    if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
-      const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
-        timeout: 3000,
-      });
-      city = geo.data.city || "unknown";
-      country = geo.data.country_name || "unknown";
-      region = geo.data.region || "unknown";
     }
 
     const existingVisitor = visitorId
@@ -84,7 +77,6 @@ router.post("/pageview", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/track/click
 router.post("/click", async (req: Request, res: Response) => {
   try {
     const { visitorId, sessionId, element, path } = req.body;
