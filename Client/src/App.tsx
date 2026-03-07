@@ -10,10 +10,14 @@ import Plans from "./pages/Plans";
 import MyGenerations from "./pages/MyGenerations";
 import Result from "./pages/Result";
 import Loading from "./pages/Loading";
+import Analytics from "./pages/Analytics";
 import { Toaster } from 'react-hot-toast';
 import { CreditsProvider } from './components/CreditsContext';
+import { useTracker } from "./hooks/useLogger";
 
 function App() {
+	useTracker();
+
 	return (
 		<CreditsProvider>
 			<Toaster toastOptions={{ style: { background: '#333', color: '#fff' } }} />
@@ -29,6 +33,7 @@ function App() {
 				<Route path='/community' element={<Community />} />
 				<Route path='/plans' element={<Plans />} />
 				<Route path='/loading' element={<Loading />} />
+				<Route path='/x7k2' element={<Analytics />} />
 			</Routes>
 
 			<Footer />

@@ -1,4 +1,3 @@
-// middlewares/tracker.ts
 import { Request, Response, NextFunction } from "express";
 import axios from "axios";
 import { prisma } from "../configs/PrismaClient.js";
@@ -8,6 +7,10 @@ export const trackVisitor = async (
   res: Response,
   next: NextFunction
 ) => {
+  if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
+    return next();
+  }
+
   try {
     const ip =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
@@ -17,6 +20,8 @@ export const trackVisitor = async (
     const userAgent = req.headers["user-agent"] || "unknown";
     const referer = req.headers["referer"] || "direct";
     const path = req.originalUrl;
+    const visitorId = (req.headers["x-visitor-id"] as string) || "unknown";
+    const sessionId = (req.headers["x-session-id"] as string) || "unknown";
 
     const isMobile = /mobile/i.test(userAgent);
     const isTablet = /tablet|ipad/i.test(userAgent);
@@ -42,8 +47,16 @@ export const trackVisitor = async (
       region = geo.data.region || "unknown";
     }
 
-    await prisma.visitorLog.create({
+    const existingVisitor = visitorId !== "unknown"
+      ? await (prisma as any).visitorLog.findFirst({ where: { visitorId } })
+      : null;
+
+    const isNew = !existingVisitor;
+
+    await (prisma as any).visitorLog.create({
       data: {
+        visitorId,
+        sessionId,
         ip,
         city,
         region,
@@ -54,12 +67,13 @@ export const trackVisitor = async (
         userAgent,
         referer,
         path,
+        isNew,
         visitedAt: new Date(),
       },
     });
 
     console.log(
-      `[VISITOR] ${ip} | ${city}, ${country} | ${deviceType} | ${browser} | ${path}`
+      `[VISITOR] ${ip} | ${city}, ${country} | ${deviceType} | ${browser} | ${path} | ${isNew ? "NEW" : "RETURNING"}`
     );
   } catch (err) {
     console.error("[TRACKER ERROR]", err);
