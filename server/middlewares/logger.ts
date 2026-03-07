@@ -5,7 +5,7 @@ import { prisma } from "../configs/PrismaClient.js";
 export const trackVisitor = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
     return next();
@@ -37,6 +37,20 @@ export const trackVisitor = async (
     let city = "unknown";
     let country = "unknown";
     let region = "unknown";
+    try {
+      if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
+        const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
+          timeout: 3000,
+        });
+        if (!geo.data.error) {
+          city = geo.data.city || "unknown";
+          country = geo.data.country_name || "unknown";
+          region = geo.data.region || "unknown";
+        }
+      }
+    } catch {
+      // geo lookup failed, continue with unknown location
+    }
 
     if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
       const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
@@ -47,9 +61,10 @@ export const trackVisitor = async (
       region = geo.data.region || "unknown";
     }
 
-    const existingVisitor = visitorId !== "unknown"
-      ? await (prisma as any).visitorLog.findFirst({ where: { visitorId } })
-      : null;
+    const existingVisitor =
+      visitorId !== "unknown"
+        ? await (prisma as any).visitorLog.findFirst({ where: { visitorId } })
+        : null;
 
     const isNew = !existingVisitor;
 
@@ -73,7 +88,7 @@ export const trackVisitor = async (
     });
 
     console.log(
-      `[VISITOR] ${ip} | ${city}, ${country} | ${deviceType} | ${browser} | ${path} | ${isNew ? "NEW" : "RETURNING"}`
+      `[VISITOR] ${ip} | ${city}, ${country} | ${deviceType} | ${browser} | ${path} | ${isNew ? "NEW" : "RETURNING"}`,
     );
   } catch (err) {
     console.error("[TRACKER ERROR]", err);

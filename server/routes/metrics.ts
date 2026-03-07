@@ -18,15 +18,34 @@ router.post("/pageview", async (req: Request, res: Response) => {
     const isMobile = /mobile/i.test(userAgent);
     const isTablet = /tablet|ipad/i.test(userAgent);
     const deviceType = isTablet ? "tablet" : isMobile ? "mobile" : "desktop";
-    const browser = userAgent.match(/(chrome|firefox|safari|edge|opera)/i)?.[0] || "unknown";
-    const os = userAgent.match(/(windows|mac os|linux|android|ios|iphone|ipad)/i)?.[0] || "unknown";
+    const browser =
+      userAgent.match(/(chrome|firefox|safari|edge|opera)/i)?.[0] || "unknown";
+    const os =
+      userAgent.match(/(windows|mac os|linux|android|ios|iphone|ipad)/i)?.[0] ||
+      "unknown";
 
     let city = "unknown";
     let country = "unknown";
     let region = "unknown";
+    try {
+      if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
+        const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
+          timeout: 3000,
+        });
+        if (!geo.data.error) {
+          city = geo.data.city || "unknown";
+          country = geo.data.country_name || "unknown";
+          region = geo.data.region || "unknown";
+        }
+      }
+    } catch {
+      // geo lookup failed, continue with unknown location
+    }
 
     if (ip !== "unknown" && ip !== "::1" && ip !== "127.0.0.1") {
-      const geo = await axios.get(`https://ipapi.co/${ip}/json/`, { timeout: 3000 });
+      const geo = await axios.get(`https://ipapi.co/${ip}/json/`, {
+        timeout: 3000,
+      });
       city = geo.data.city || "unknown";
       country = geo.data.country_name || "unknown";
       region = geo.data.region || "unknown";
