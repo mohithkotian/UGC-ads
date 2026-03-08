@@ -32,6 +32,7 @@ app.post(
 );
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // <-- ADD THIS LINE
 app.use(clerkMiddleware());
 
 // Track all visitors except internal routes

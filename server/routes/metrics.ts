@@ -6,6 +6,9 @@ const router = Router();
 
 router.post("/pageview", async (req: Request, res: Response) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Missing request body" });
+    }
     const { visitorId, sessionId, path, timeOnPage } = req.body;
 
     const ip =
@@ -79,6 +82,9 @@ router.post("/pageview", async (req: Request, res: Response) => {
 
 router.post("/click", async (req: Request, res: Response) => {
   try {
+    if (!req.body) {
+      return res.status(400).json({ error: "Missing request body" });
+    }
     const { visitorId, sessionId, element, path } = req.body;
 
     await (prisma as any).clickLog.create({
