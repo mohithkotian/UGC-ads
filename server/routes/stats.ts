@@ -106,9 +106,10 @@ router.get("/visitors/summary", isAdmin, async (req: Request, res: Response) => 
       recentVisitors,
       topClicks,
     });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch summary" });
-  }
+  }  catch (err) {
+  console.error("[STATS SUMMARY ERROR]", err);
+  res.status(500).json({ error: "Failed to fetch summary" });
+}
 });
 
 export default router;

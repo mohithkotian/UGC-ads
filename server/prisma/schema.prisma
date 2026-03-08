@@ -45,6 +45,8 @@ model Project {
 }
 model VisitorLog {
   id          String   @id @default(cuid())
+  visitorId   String   @default("unknown")
+  sessionId   String   @default("unknown")
   ip          String
   city        String
   region      String
@@ -55,5 +57,16 @@ model VisitorLog {
   userAgent   String
   referer     String
   path        String
+  timeOnPage  Int?
+  isNew       Boolean  @default(true)
   visitedAt   DateTime @default(now())
+}
+
+model ClickLog {
+  id        String   @id @default(cuid())
+  visitorId String   @default("unknown")
+  sessionId String   @default("unknown")
+  element   String
+  path      String
+  clickedAt DateTime @default(now())
 }
