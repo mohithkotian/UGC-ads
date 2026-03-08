@@ -259,6 +259,8 @@ User logs in via Clerk
 
 MIT — see [LICENSE](./LICENSE) for details.
 
+
 ---
+
 
 Built by [Mohith Kotian](https://github.com/mohithkotian)
