@@ -71,7 +71,7 @@ const Result = () => {
 
       const token = await getToken()
 
-      const response = await api.post(
+      await api.post(
         "/api/project/video",
         { projectId },
         {
@@ -79,19 +79,16 @@ const Result = () => {
         }
       )
 
-      const videoUrl: string = response.data.videoUrl
-
       setProject(prev => {
         if (!prev) return prev
 
         return {
           ...prev,
-          generatedVideo: videoUrl,
-          isGenerating: false,
+          isGenerating: true,
         }
       })
 
-      toast.success(response.data.message)
+      toast.success("Video generation started. This page will update when it is ready.")
 
     } catch (error: unknown) {
 
@@ -292,6 +289,12 @@ const Result = () => {
 
                 </div>
 
+              )}
+
+              {project.error && !project.generatedVideo && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-center text-sm">
+                  {project.error}
+                </div>
               )}
 
             </div>

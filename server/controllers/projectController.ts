@@ -4,6 +4,14 @@ import { prisma } from "../configs/PrismaClient.js";
 import { v2 as cloudinary } from "cloudinary";
 import { GoogleAuth } from "google-auth-library";
 import axios from "axios";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
+const isDemoProvider = process.env.AI_PROVIDER === "demo" || !process.env.GOOGLE_PROJECT_ID || !process.env.GOOGLE_CREDENTIALS_JSON;
 
 const PLAN_LIMITS: Record<string, number> = {
   FREE: 20,
@@ -26,14 +34,35 @@ const getAccessToken = async (): Promise<string> => {
 // IMAGE GENERATION (IMAGEN)
 //////////////////////////////////////////////////////
 
-const generateImageWithImagen = async (prompt: string): Promise<string> => {
+const downloadAsDataUri = async (url: string): Promise<string> => {
+  const response = await axios.get(url, { responseType: "arraybuffer" });
+  const mimeType = String(response.headers["content-type"] || "image/png").split(";")[0];
+  return `data:${mimeType};base64,${Buffer.from(response.data).toString("base64")}`;
+};
+
+const generateImageWithImagen = async (
+  prompt: string,
+  aspectRatio?: string | null,
+  fallbackImageUrl?: string,
+): Promise<string> => {
+  if (isDemoProvider) {
+    if (!fallbackImageUrl) throw new Error("Demo provider requires an uploaded product image");
+    console.warn("AI_PROVIDER=demo: using the uploaded product image as the generated image");
+    return downloadAsDataUri(fallbackImageUrl);
+  }
+
   const token = await getAccessToken();
 
   const response = await axios.post(
     `https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/imagen-3.0-generate-001:predict`,
     {
       instances: [{ prompt }],
-      parameters: { sampleCount: 1, aspectRatio: "1:1" },
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: aspectRatio === "9:16" || aspectRatio === "16:9" || aspectRatio === "1:1"
+          ? aspectRatio
+          : "1:1",
+      },
     },
     {
       headers: {
@@ -53,15 +82,41 @@ const generateImageWithImagen = async (prompt: string): Promise<string> => {
 // VIDEO GENERATION (VEO)
 //////////////////////////////////////////////////////
 
+const generateDemoVideo = async (imageUrl: string, aspectRatio?: string | null): Promise<string> => {
+  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ugc-demo-"));
+  const inputPath = path.join(tempDir, "input");
+  const outputPath = path.join(tempDir, "output.mp4");
+  try {
+    const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+    await fs.promises.writeFile(inputPath, response.data);
+    const size = aspectRatio === "9:16" ? "720:1280" : aspectRatio === "1:1" ? "1080:1080" : "1280:720";
+    const filter = `scale=${size}:force_original_aspect_ratio=increase,crop=${size},zoompan=z='min(zoom+0.0015,1.08)':d=150:s=${size}:fps=30`;
+    await execFileAsync("ffmpeg", [
+      "-y", "-loop", "1", "-i", inputPath, "-t", "5", "-vf", filter,
+      "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath,
+    ]);
+    const video = await fs.promises.readFile(outputPath);
+    return `data:video/mp4;base64,${video.toString("base64")}`;
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
+  }
+};
+
 const generateVideoWithVeo = async (
   imageUrl: string,
   prompt: string,
   aspectRatio?: string | null,
 ): Promise<string> => {
+  if (isDemoProvider) {
+    console.warn("AI_PROVIDER=demo: generating a deterministic Ken Burns demo video with FFmpeg");
+    return generateDemoVideo(imageUrl, aspectRatio);
+  }
+
   const token = await getAccessToken();
 
   const imageResponse = await axios.get(imageUrl, { responseType: "arraybuffer" });
   const imageBase64 = Buffer.from(imageResponse.data).toString("base64");
+  const mimeType = String(imageResponse.headers["content-type"] || "image/png").split(";")[0];
   const ratio = aspectRatio === "9:16" ? "9:16" : "16:9";
 
   //////////////////////////////////////////////////////
@@ -76,7 +131,7 @@ const generateVideoWithVeo = async (
           prompt,
           image: {
             bytesBase64Encoded: imageBase64,
-            mimeType: "image/jpeg",
+            mimeType,
           },
         },
       ],
@@ -215,7 +270,7 @@ Cinematic lighting.
 ${userPrompt}
 `.trim();
 
-    const base64Image = await generateImageWithImagen(imagePrompt);
+    const base64Image = await generateImageWithImagen(imagePrompt, aspectRatio, uploadedImages[0]);
     const uploadResult = await cloudinary.uploader.upload(base64Image);
 
     await prisma.project.update({
@@ -240,56 +295,77 @@ ${userPrompt}
 
 export const createVideo = async (req: Request, res: Response) => {
   const { projectId } = req.body;
-
   if (!projectId) return res.status(400).json({ message: "Project ID missing" });
 
   try {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    const { userId } = (req as any).auth();
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+    const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } });
+    if (!dbUser) return res.status(404).json({ message: "User not found" });
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId: dbUser.id },
+    });
     if (!project || !project.generatedImage) {
       return res.status(404).json({ message: "Generated image not found" });
     }
+    if (project.isGenerating) {
+      return res.status(409).json({ message: "Generation is already in progress" });
+    }
 
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { isGenerating: true },
+    const baseLimit = PLAN_LIMITS[dbUser.plan] || 20;
+    if (baseLimit - dbUser.usedCredits < 10) {
+      return res.status(401).json({ message: "Insufficient credits" });
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: dbUser.id },
+        data: { usedCredits: { increment: 10 } },
+      }),
+      prisma.project.update({
+        where: { id: projectId },
+        data: { isGenerating: true, error: null },
+      }),
+    ]);
+
+    // Veo is long-running. Return immediately and let the result page poll the project.
+    void (async () => {
+      try {
+        const videoPrompt = `Dynamic cinematic movement showing ${project.productName || "the product"}.
+High resolution advertisement video.`;
+        const base64Video = await generateVideoWithVeo(
+          project.generatedImage!,
+          videoPrompt,
+          project.aspectRatio,
+        );
+        const uploadResult = await cloudinary.uploader.upload(base64Video, {
+          resource_type: "video",
+        });
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { generatedVideo: uploadResult.secure_url, isGenerating: false, error: null },
+        });
+      } catch (error: any) {
+        console.error("VIDEO ERROR:", error);
+        Sentry.captureException(error);
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { isGenerating: false, error: error?.message || "Video generation failed" },
+        });
+      }
+    })();
+
+    return res.status(202).json({
+      message: "Video generation started",
+      projectId,
+      status: "processing",
     });
-
-    const videoPrompt = `
-Dynamic cinematic movement showing ${project.productName}.
-High resolution advertisement video.
-`.trim();
-
-    const base64Video = await generateVideoWithVeo(
-      project.generatedImage,
-      videoPrompt,
-      project.aspectRatio,
-    );
-
-    const uploadResult = await cloudinary.uploader.upload(base64Video, {
-      resource_type: "video",
-    });
-
-    await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        generatedVideo: uploadResult.secure_url,
-        isGenerating: false,
-      },
-    });
-
-    res.json({ message: "Video generation complete", videoUrl: uploadResult.secure_url });
-
   } catch (error: any) {
     console.error("VIDEO ERROR:", error);
     Sentry.captureException(error);
-
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { isGenerating: false, error: error.message },
-    });
-
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 

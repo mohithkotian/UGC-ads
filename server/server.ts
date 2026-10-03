@@ -33,6 +33,13 @@ app.post(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // <-- ADD THIS LINE
+
+// Keep the health endpoint dependency-free so deployment probes work before
+// Clerk, the database, and analytics services are configured.
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Server is Live!");
+});
+
 app.use(clerkMiddleware());
 
 // Track all visitors except internal routes
@@ -44,10 +51,6 @@ app.use((req, res, next) => {
 });
 
 const PORT = parseInt(process.env.PORT || "5000");
-
-app.get("/", (req: Request, res: Response) => {
-  res.send("Server is Live!");
-});
 
 app.get("/debug-sentry", function mainHandler(req, res) {
   throw new Error("My first Sentry error!");

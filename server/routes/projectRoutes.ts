@@ -15,8 +15,8 @@ const projectRouter = express.Router();
 // Create project
 projectRouter.post(
   "/create",
-  upload.array("images", 2),
   protect,
+  upload.array("images", 2),
   createProject
 );
 

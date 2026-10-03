@@ -7,11 +7,14 @@ interface CreditsContextType {
   refetchCredits: () => void
 }
 
+// This file intentionally exports the context and its hook alongside the provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const CreditsContext = createContext<CreditsContextType>({
   credits: 0,
   refetchCredits: () => {},
 })
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCredits = () => useContext(CreditsContext)
 
 export function CreditsProvider({ children }: { children: React.ReactNode }) {

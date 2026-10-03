@@ -25,7 +25,7 @@ const MyGenerations = () => {
       })
       setGenerations(data.projects)
       setLoading(false)
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       toast.error(error?.response?.data?.message || error.message)
       console.log(error)
       setLoading(false)

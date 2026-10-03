@@ -264,3 +264,12 @@ MIT — see [LICENSE](./LICENSE) for details.
 
 
 Built by [Mohith Kotian](https://github.com/mohithkotian)
+
+## AI provider modes
+
+The server supports two modes through `AI_PROVIDER`:
+
+- `demo` (default when Google credentials are absent): reuses the uploaded product image and creates a 5-second Ken Burns motion video with FFmpeg. This is useful for testing the full product flow without a Google AI key.
+- `google`: uses Vertex AI Imagen 3.0 and Veo 2.0. Set `GOOGLE_PROJECT_ID` and `GOOGLE_CREDENTIALS_JSON`, enable Vertex AI, and use a billed Google Cloud project.
+
+Copy `server/.env.example` to `server/.env`. The demo provider still requires the normal database, Clerk, and Cloudinary configuration for the complete authenticated application.
